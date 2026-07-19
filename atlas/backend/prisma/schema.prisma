@@ -1,0 +1,186 @@
+// ATLAS — Prisma Schema
+// See /docs/Database.md for the reasoning behind this shape.
+// Hosted on Supabase Postgres. Identity source of truth is Supabase Auth
+// (auth.users) — the User model here mirrors it by id, it doesn't own it.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+/// Mirrors Supabase auth.users by id. App-specific profile data only.
+model User {
+  id          String   @id @default(uuid()) // must match Supabase auth.users.id
+  email       String   @unique
+  displayName String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  portfolios Portfolio[]
+
+  @@map("users")
+}
+
+model Portfolio {
+  id        String   @id @default(uuid())
+  userId    String
+  name      String
+  baseCurrency String @default("USD")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user      User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  positions        Position[]
+  decisionCards    DecisionCard[]
+  journalEntries   JournalEntry[]
+  sleepSnapshots   SleepScoreSnapshot[]
+
+  @@index([userId])
+  @@map("portfolios")
+}
+
+enum AssetClass {
+  EQUITY
+  ETF
+  MUTUAL_FUND
+  CRYPTO
+  REAL_ESTATE
+  PRIVATE_EQUITY
+  COMMODITY
+  CASH
+}
+
+model Position {
+  id           String     @id @default(uuid())
+  portfolioId  String
+  ticker       String
+  name         String
+  assetClass   AssetClass
+  quantity     Float
+  costBasis    Float
+  currency     String     @default("USD")
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  portfolio    Portfolio  @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
+
+  @@index([portfolioId])
+  @@index([ticker])
+  @@map("positions")
+}
+
+enum RecommendationLean {
+  STRONG_BULLISH
+  LEAN_BULLISH
+  NEUTRAL
+  LEAN_BEARISH
+  STRONG_BEARISH
+}
+
+enum RiskLevel {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+/// A persisted snapshot of a recommendation. See /docs/Decision_Framework.md —
+/// this is deliberately NOT recomputed fresh on every render; see ADR context
+/// in /docs/Database.md for why persistence matters for trust.
+model DecisionCard {
+  id                String              @id @default(uuid())
+  portfolioId       String
+  ticker            String
+  recommendation    RecommendationLean
+  confidence         Int                 // 0-100
+  bullProbability    Int                 // 0-100, sums with neutral+bear to 100
+  neutralProbability Int
+  bearProbability    Int
+  expectedReturn     Float               // e.g. 0.09 = +9%
+  expectedDrawdown   Float               // e.g. -0.04 = -4%
+  riskLevel          RiskLevel
+  reasoning          String[]            // 2-4 specific statements
+  invalidationConditions String[]        // 2-4 specific, falsifiable conditions
+  sources            String[]
+  createdAt          DateTime            @default(now())
+
+  portfolio          Portfolio           @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
+  signalScores        SignalScore[]
+
+  @@index([portfolioId])
+  @@index([ticker])
+  @@map("decision_cards")
+}
+
+enum SignalFamily {
+  MACRO
+  TECHNICAL
+  FUNDAMENTAL
+  INSTITUTIONAL
+  SENTIMENT
+  OPTIONS
+}
+
+/// One row per signal family per DecisionCard. This table is what makes
+/// "no black box" enforceable at the data layer — see /docs/Frameworks.md.
+model SignalScore {
+  id             String        @id @default(uuid())
+  decisionCardId String
+  family         SignalFamily
+  score          Int           // 0-100
+  weight         Float         // weight applied for this card's confidence calc
+
+  decisionCard   DecisionCard  @relation(fields: [decisionCardId], references: [id], onDelete: Cascade)
+
+  @@unique([decisionCardId, family])
+  @@map("signal_scores")
+}
+
+enum JournalEmotion {
+  CONFIDENT
+  ANXIOUS
+  FOMO
+  REVENGE
+  NEUTRAL
+  DISCIPLINED
+}
+
+model JournalEntry {
+  id               String          @id @default(uuid())
+  portfolioId      String
+  ticker           String
+  action           String          // "BUY" | "SELL" | "HOLD" — free text v0, enum candidate later
+  reason           String
+  emotion          JournalEmotion
+  confidenceAtEntry Int            // 0-100, user's own stated confidence
+  outcome          String?         // filled in retrospectively
+  lesson           String?
+  createdAt        DateTime        @default(now())
+
+  portfolio        Portfolio       @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
+
+  @@index([portfolioId])
+  @@map("journal_entries")
+}
+
+/// Point-in-time Sleep Score so trend is queryable. See /docs/Sleep_Score.md.
+model SleepScoreSnapshot {
+  id            String   @id @default(uuid())
+  portfolioId   String
+  score         Int      // 0-100
+  riskSeverity  Int
+  confidenceTrend Float  // delta, can be negative
+  eventDensity  Int
+  unresolvedFlags Int
+  createdAt     DateTime @default(now())
+
+  portfolio     Portfolio @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
+
+  @@index([portfolioId, createdAt])
+  @@map("sleep_score_snapshots")
+}
