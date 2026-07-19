@@ -107,4 +107,3 @@ export function scoreRiskProfile(positions: PositionInput[], baseCurrency = "USD
     scoreLiquidity(positions),
   ];
 }
-fix: add type guard for undefined largest position in riskEngine.
