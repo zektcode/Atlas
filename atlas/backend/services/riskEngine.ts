@@ -28,7 +28,7 @@ export function scoreConcentration(positions: PositionInput[]): RiskDimension {
   }
   const largest = [...positions].sort((a, b) => b.marketValue - a.marketValue)[0];
     if (!largest) {
-    return { label: "Concentration", severity: 0, description: "No positions found", status: "PASS" };
+    return { label: "Concentration", severity: 0, status: "PASS" };
   }
   const pct = largest.marketValue / total;
   const severity = Math.min(100, Math.round((pct / CONCENTRATION_WARN_THRESHOLD) * 60));
