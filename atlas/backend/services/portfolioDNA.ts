@@ -125,9 +125,15 @@ function computeFundOverlaps(positions: DNAPosition[], fundHoldings: DNAFundHold
   const overlaps: FundOverlap[] = [];
 
   for (let i = 0; i < heldFundTickers.length; i++) {
+    const tickerA = heldFundTickers[i];
+    if (!tickerA) continue; // Stops TypeScript from worrying about 'undefined'
+
     for (let j = i + 1; j < heldFundTickers.length; j++) {
-      const fundA = findFund(fundHoldings, heldFundTickers[i]);
-      const fundB = findFund(fundHoldings, heldFundTickers[j]);
+      const tickerB = heldFundTickers[j];
+      if (!tickerB) continue; // Stops TypeScript from worrying about 'undefined'
+
+      const fundA = findFund(fundHoldings, tickerA);
+      const fundB = findFund(fundHoldings, tickerB);
       if (!fundA || !fundB) continue;
 
       const weightsA = new Map(fundA.underlyingHoldings.map((h) => [h.ticker, h.weightPct]));
