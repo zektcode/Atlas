@@ -34,3 +34,4 @@ Atlas ships in phases deliberately ordered around trust, not feature count. Brok
 
 ## Explicitly not planned pre-Phase 3
 Payments, live trade execution, anything that could be construed as investment advice without appropriate registration. See `investor/Competitive_Analysis.md` for how this scoping decision shapes positioning.
+.
