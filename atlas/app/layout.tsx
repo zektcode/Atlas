@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Fraunces, Inter, IBM_Plex_Mono } from "next/font/google";
-import "./globals.css";
+import "@/app/globals.css";
 
 const fraunces = Fraunces({ subsets: ["latin"], variable: "--font-fraunces", weight: ["400", "500"] });
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
